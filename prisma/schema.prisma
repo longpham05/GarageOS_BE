@@ -1,0 +1,292 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────
+
+enum UserRole {
+  GARAGE
+  SUPPLIER
+  ADMIN
+}
+
+enum SupplierTier {
+  GOLD
+  SILVER
+  BRONZE
+}
+
+enum RequestType {
+  TYRE
+  OIL
+  OTHER
+}
+
+enum Priority {
+  NORMAL
+  URGENT
+}
+
+enum RFQStatus {
+  NEW
+  QUOTING
+  CLOSED
+  CANCELLED
+}
+
+enum QuotationStatus {
+  SUBMITTED
+  SELECTED
+  REJECTED
+  EXPIRED
+}
+
+enum OrderStatus {
+  CREATED
+  CONFIRMED
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+}
+
+enum OrderEventType {
+  ORDER_CREATED
+  STATUS_UPDATED
+  CANCELLED
+  NOTE_ADDED
+}
+
+enum ActorType {
+  ADMIN
+  SYSTEM
+  SUPPLIER
+  GARAGE
+}
+
+enum SnapshotPeriod {
+  WEEK
+  MONTH
+}
+
+// ─────────────────────────────────────────────
+// Auth
+// ─────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         UserRole
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations — only one of these will be non-null based on role
+  garage   Garage?
+  supplier Supplier?
+
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+// ─────────────────────────────────────────────
+// Core Entities
+// ─────────────────────────────────────────────
+
+model Garage {
+  id            String   @id @default(cuid())
+  name          String
+  phone         String
+  address       String?
+  contactPerson String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  vehicles Vehicle[]
+  rfqs     RFQ[]
+  orders   Order[]
+
+  @@map("garages")
+}
+
+model Supplier {
+  id            String        @id @default(cuid())
+  name          String
+  phone         String
+  address       String?
+  contactPerson String?
+  tier          SupplierTier?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  quotations   Quotation[]
+  orders       Order[]
+  snapshots    SupplierPerformanceSnapshot[]
+
+  @@map("suppliers")
+}
+
+model Vehicle {
+  id           String   @id @default(cuid())
+  licensePlate String   @unique
+  brand        String?
+  model        String?
+  year         Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Optional: garage may want to own/track this vehicle
+  garageId String?
+  garage   Garage? @relation(fields: [garageId], references: [id])
+
+  rfqs RFQ[]
+
+  @@map("vehicles")
+}
+
+// ─────────────────────────────────────────────
+// RFQ Flow
+// ─────────────────────────────────────────────
+
+model RFQ {
+  id          String      @id @default(cuid())
+  garageId    String
+  vehicleId   String
+  requestType RequestType
+  description String
+  priority    Priority    @default(NORMAL)
+  status      RFQStatus   @default(NEW)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  garage  Garage  @relation(fields: [garageId], references: [id])
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id])
+
+  attachments RFQAttachment[]
+  quotations  Quotation[]
+  order       Order?
+
+  @@map("rfqs")
+}
+
+model RFQAttachment {
+  id        String   @id @default(cuid())
+  rfqId     String
+  fileUrl   String
+  fileName  String?
+  mimeType  String?
+  createdAt DateTime @default(now())
+
+  rfq RFQ @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+
+  @@map("rfq_attachments")
+}
+
+model Quotation {
+  id         String          @id @default(cuid())
+  rfqId      String
+  supplierId String
+  price      Decimal         @db.Decimal(12, 2)
+  etaMinutes Int
+  notes      String?
+  status     QuotationStatus @default(SUBMITTED)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  rfq      RFQ      @relation(fields: [rfqId], references: [id])
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+
+  order Order?
+
+  @@unique([rfqId, supplierId]) // one quotation per supplier per RFQ
+  @@map("quotations")
+}
+
+// ─────────────────────────────────────────────
+// Order Flow
+// ─────────────────────────────────────────────
+
+model Order {
+  id          String      @id @default(cuid())
+  rfqId       String      @unique // one order per RFQ
+  quotationId String      @unique // one order per quotation
+  garageId    String
+  supplierId  String
+  status      OrderStatus @default(CREATED)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  confirmedAt DateTime?
+  deliveredAt DateTime?
+
+  rfq       RFQ       @relation(fields: [rfqId], references: [id])
+  quotation Quotation @relation(fields: [quotationId], references: [id])
+  garage    Garage    @relation(fields: [garageId], references: [id])
+  supplier  Supplier  @relation(fields: [supplierId], references: [id])
+
+  events OrderEvent[]
+
+  @@map("orders")
+}
+
+model OrderEvent {
+  id         String         @id @default(cuid())
+  orderId    String
+  eventType  OrderEventType
+  fromStatus OrderStatus?
+  toStatus   OrderStatus?
+  createdBy  ActorType
+  note       String?
+  createdAt  DateTime       @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_events")
+}
+
+// ─────────────────────────────────────────────
+// Analytics (nice-to-have, can be populated later)
+// ─────────────────────────────────────────────
+
+model SupplierPerformanceSnapshot {
+  id              String         @id @default(cuid())
+  supplierId      String
+  period          SnapshotPeriod
+  periodStart     DateTime
+  avgResponseTime Float? // seconds from RFQ created → first quotation
+  fulfillmentRate Float? // 0.0–1.0
+  cancelRate      Float? // 0.0–1.0
+  createdAt       DateTime       @default(now())
+
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+
+  @@map("supplier_performance_snapshots")
+}
