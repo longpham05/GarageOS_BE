@@ -1,5 +1,5 @@
 // src/utils/jwt.ts
-import jwt from 'jsonwebtoken';
+const jwt = require('jsonwebtoken');
 import { UserRole } from '@prisma/client';
 
 export interface JwtPayload {
