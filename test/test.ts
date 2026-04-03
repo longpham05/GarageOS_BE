@@ -290,6 +290,7 @@ describe('Auth — Token lifecycle', () => {
       .expect(200);
     ctx.garageToken   = r1.body.data.accessToken;
     ctx.garageRefresh = r1.body.data.refreshToken;
+    expect(originalRefresh).not.toBe(ctx.garageRefresh);
 
     // Now try to reuse the old token
     await request(app)
