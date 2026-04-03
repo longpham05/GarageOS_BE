@@ -24,6 +24,22 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
+
+    env:
+      DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+      DIRECT_URL: postgresql://test_user:test_password@localhost:5432/test_db
+
+      # JWT — must match your local .env
+      JWT_ACCESS_SECRET: test-access-secret
+      JWT_REFRESH_SECRET: test-refresh-secret
+      JWT_ACCESS_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+
+      # File uploads
+      UPLOAD_DIR: uploads
+
+      # Node environment
+      NODE_ENV: test
     
     steps:
     - name: Checkout code
@@ -37,20 +53,11 @@ jobs:
     - name: Install dependencies
       run: npm install
     
-    - name: Push Prisma schema
-      run: npx prisma db push
-      env:
-        DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
-        DIRECT_URL: postgresql://test_user:test_password@localhost:5432/test_db
+    - name: Run Prisma migrations
+      run: npx prisma migrate deploy
 
     - name: Seed database
       run: npm run prisma:seed
-      env:
-        DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
-        DIRECT_URL: postgresql://test_user:test_password@localhost:5432/test_db
     
     - name: Run tests
       run: npm test
-      env:
-        DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
-        JWT_SECRET: test-secret-123
