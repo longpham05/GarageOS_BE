@@ -302,7 +302,8 @@ describe('Auth — Token lifecycle', () => {
     // Get a disposable pair
     const loginRes = await request(app)
       .post('/api/auth/login')
-      .send({ email: ctx.supplierEmail, password: 'TestPass@123' });
+      .send({ email: ctx.supplierEmail, password: 'TestPass@123' })
+      .expect(200);
     const dispRefresh = loginRes.body.data.refreshToken;
 
     await request(app)

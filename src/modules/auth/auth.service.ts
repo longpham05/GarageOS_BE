@@ -94,14 +94,17 @@ export const refresh = async (token: string) => {
     throw new AppError('Invalid refresh token', 401);
   }
 
-  // Check DB record exists and is not expired
-  const stored = await prisma.refreshToken.findUnique({ where: { token } });
-  if (!stored || stored.expiresAt < new Date()) {
-    throw new AppError('Refresh token expired or revoked', 401);
-  }
+  // Atomic delete (rotation protection)
+  const deleted = await prisma.refreshToken.deleteMany({
+    where: {
+      token,
+      expiresAt: { gt: new Date() }, // also check expiry here
+    },
+  });
 
-  // Rotate: delete old, issue new pair
-  await prisma.refreshToken.delete({ where: { token } });
+  if (deleted.count === 0) {
+    throw new AppError('Refresh token expired or already used', 401);
+  }
 
   const payload = await buildPayload(decoded.userId, decoded.role);
   const accessToken = generateAccessToken(payload);
