@@ -1,5 +1,6 @@
 // src/utils/jwt.ts
 const jwt = require('jsonwebtoken');
+import { randomUUID } from 'crypto';
 import { UserRole } from '@prisma/client';
 
 export interface JwtPayload {
@@ -17,7 +18,11 @@ export const generateAccessToken = (payload: JwtPayload): string => {
 };
 
 export const generateRefreshToken = (payload: JwtPayload): string => {
-  return jwt.sign(payload, process.env.JWT_REFRESH_SECRET as string, {
+  const payloadWithJti = {
+    ...payload,
+    jti: randomUUID(), // ensures every token is unique
+  };
+  return jwt.sign(payloadWithJti, process.env.JWT_REFRESH_SECRET as string, {
     expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN as string) || '7d',
   });
 };
