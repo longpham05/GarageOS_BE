@@ -17,20 +17,9 @@
  *   - A global afterAll wipes all test-owned rows to leave the DB clean.
  */
 
-let app: any;
-let prisma: any;
-
-try {
-  app = require('../src/app').default;
-  prisma = require('../src/utils/prisma').prisma;
-} catch (e) {
-  console.error("IMPORT ERROR:", e);
-  throw e;
-}
-
 import request from 'supertest';
-// import app from '../src/app';
-// import { prisma } from '../src/utils/prisma';
+import app from '../src/app';
+import { prisma } from '../src/utils/prisma';
 
 // ─────────────────────────────────────────────────────────────
 // Shared state — populated as the suite progresses
