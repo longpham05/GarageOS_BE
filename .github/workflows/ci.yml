@@ -41,6 +41,7 @@ jobs:
       run: npx prisma db push
       env:
         DATABASE_URL: postgresql://test:test@localhost:5432/test
+        DIRECT_URL: postgresql://test:test@localhost:5432/test
     
     - name: Run tests
       run: npm test
