@@ -18,4 +18,7 @@ router.get('/mine', authorize('SUPPLIER'), controller.listMyQuotations);
 // GET  /api/quotations/rfq/:rfqId  (garage or admin sees quotes for an RFQ)
 router.get('/rfq/:rfqId', authorize('GARAGE', 'ADMIN'), validate(rfqIdParamSchema), controller.listQuotationsForRFQ);
 
+// GET  /api/quotations/mine/rfq/:rfqId (supplier sees their own quotes for an RFQ)
+router.get('/mine/rfq/:rfqId', authorize('SUPPLIER'), validate(rfqIdParamSchema), controller.listMyQuotationsForRFQ);
+
 export default router;

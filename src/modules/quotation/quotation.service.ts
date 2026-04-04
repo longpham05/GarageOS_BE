@@ -83,6 +83,24 @@ export const listQuotationsForSupplier = async (supplierId: string, page = 1, li
   return { items, total, page, limit };
 };
 
+export const listSupplierQuotationsForRFQ = async (supplierId: string, rfqId: string) => {
+  return prisma.quotation.findFirst({
+    where: {
+      supplierId,
+      rfqId,
+    },
+    include: {
+      supplier: { select: { id: true, name: true, tier: true } },
+      rfq: {
+        include: {
+          vehicle: true,
+          garage: { select: { id: true, name: true } },
+        },
+      },
+    },
+  });
+};
+
 export const expireQuotations = async (rfqId: string, excludeQuotationId: string) => {
   await prisma.quotation.updateMany({
     where: {

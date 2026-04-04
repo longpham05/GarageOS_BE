@@ -727,6 +727,25 @@ describe('Quotation — Listing', () => {
       .set(authed(ctx.garageToken))
       .expect(403);
   });
+
+  test('GET /api/quotations/mine/rfq/:rfqId — supplier sees only their own quote for this RFQ', async () => {
+    const res = await request(app)
+      .get(`/api/quotations/mine/rfq/${ctx.rfqId}`)
+      .set(authed(ctx.supplierToken))
+      .expect(200);
+
+    // Should return exactly one quotation (or the supplier's quotation object)
+    expect(res.body.data).toBeDefined();
+    expect(res.body.data.supplierId).toBe(ctx.supplierId);
+    expect(res.body.data.rfqId).toBe(ctx.rfqId);
+  });
+
+  test('GET /api/quotations/mine/rfq/:rfqId — garage cannot access (403)', async () => {
+    await request(app)
+      .get(`/api/quotations/mine/rfq/${ctx.rfqId}`)
+      .set(authed(ctx.garageToken))
+      .expect(403);
+  });
 });
 
 // =============================================================

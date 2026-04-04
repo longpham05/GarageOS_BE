@@ -42,3 +42,15 @@ export const listMyQuotations = async (req: Request, res: Response, next: NextFu
     next(err);
   }
 };
+
+export const listMyQuotationsForRFQ = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const supplierId = req.user?.supplierId;
+    if (!supplierId) throw new AppError('Supplier profile not found', 400);
+
+    const result = await quotationService.listSupplierQuotationsForRFQ(supplierId, req.params.rfqId);
+    sendSuccess(res, result);
+  } catch (err) {
+    next(err);
+  }
+};
